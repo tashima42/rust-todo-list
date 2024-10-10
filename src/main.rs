@@ -1,26 +1,53 @@
-use std::io::{self};
+use std::io::{self, Write};
+
+struct Todos {
+    last_id: u64,
+    todos: Vec<Todo>,
+}
+
+struct Todo {
+    id: u64,
+    text: String,
+}
+
+impl Todos {
+    fn new() -> Self {
+        Self {
+            last_id: 0,
+            todos: vec![],
+        }
+    }
+    fn add(&mut self, text: String) {
+        self.last_id += 1;
+        self.todos.push(Todo{ id: self.last_id, text });
+    }
+}
 
 fn main() {
-    println!("TODO LIST");
-    println!("=========================");
+    let stdout = io::stdout();
+    let mut writer = io::BufWriter::new(stdout);
 
-    let mut length = 0;
-    let list= &mut [const { String::new() }; 1024];
+    writeln!(writer, "TODO LIST").unwrap();
+    writeln!(writer, "=========================").unwrap();
+    writer.flush().unwrap();
+
+
+    let mut todos = Todos::new();
 
     loop {
      match menu() {
             1 => {
-                println!("\n\n");
-                add(list, length);
-                length += 1;
+                writeln!(writer, "\n\n").unwrap();
+                let todo = read_string("Type your todo").unwrap();
+                todos.add(todo);
                 wait();
             },
             2 => {
-                println!("\n\n");
-                println!("List");
-                for i in 0..length {
-                    println!("[{}] - {}", i, list[i])
+                writeln!(writer, "\n\n").unwrap();
+                for todo in todos.todos.iter() {
+                    writeln!(writer, "[{}] - {}", todo.id, todo.text).unwrap();
                 }
+                writer.flush().unwrap();
                 wait();
             },
             3 => {
@@ -29,6 +56,11 @@ fn main() {
             4 => {
                 println!("Update");
             },
+            5 => {
+                writeln!(writer, "Exiting...").unwrap();
+                writer.flush().unwrap();
+                break;
+            },
             _ => {
                 println!("Invalid option");
             }
@@ -36,16 +68,12 @@ fn main() {
     }
 }
 
-fn add(list: &mut [String; 1024], length: usize) {
-    let todo = read_string("Type your todo").unwrap();
-    list[length] = todo;
-}
-
 fn menu() -> i32 {
     println!("1 - Add");
     println!("2 - List");
     println!("3 - Remove");
     println!("4 - Update");
+    println!("5 - Exit");
 
     read_int("Select an option: ")
 }
