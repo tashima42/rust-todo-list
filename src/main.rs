@@ -1,4 +1,16 @@
-use std::io::{self, Write};
+use std::{fmt::Display, io::{self, Write}};
+
+enum OperationErrors {
+    NotFoundErr,
+}
+
+impl Display for OperationErrors {
+    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+        match self {
+            OperationErrors::NotFoundErr => write!(f, "not found"),
+        }
+    }
+}
 
 struct Todos {
     last_id: u64,
@@ -21,44 +33,58 @@ impl Todos {
         self.last_id += 1;
         self.todos.push(Todo{ id: self.last_id, text });
     }
+    fn remove(&mut self, id: u64) -> Result<(), OperationErrors> {
+        let mut index: Option<usize> = None;
+        for (i, t) in self.todos.iter().enumerate() {
+            if t.id == id {
+                index = Some(i); 
+            }
+        } 
+
+        match index {
+            None => Err(OperationErrors::NotFoundErr),
+            Some(index) => {
+                self.todos.remove(index);
+                Ok(())
+            },
+        }
+    }
 }
 
-fn main() {
-    let stdout = io::stdout();
-    let mut writer = io::BufWriter::new(stdout);
-
-    writeln!(writer, "TODO LIST").unwrap();
-    writeln!(writer, "=========================").unwrap();
-    writer.flush().unwrap();
+fn main() -> io::Result<()> {
+    print!("============ TODO LIST =============\n");
+    io::stdout().flush()?;
 
 
     let mut todos = Todos::new();
 
     loop {
-     match menu() {
+     match menu()? {
             1 => {
-                writeln!(writer, "\n\n").unwrap();
-                let todo = read_string("Type your todo").unwrap();
+                let todo = read_string("Type your todo: ").unwrap();
                 todos.add(todo);
-                wait();
+                wait()?;
             },
             2 => {
-                writeln!(writer, "\n\n").unwrap();
                 for todo in todos.todos.iter() {
-                    writeln!(writer, "[{}] - {}", todo.id, todo.text).unwrap();
+                    print!("[{}] - {}\n", todo.id, todo.text);
                 }
-                writer.flush().unwrap();
-                wait();
+                io::stdout().flush()?;
+                wait()?;
             },
             3 => {
-                println!("Remove");
+                let id = read_uint("Type the id of the todo you want to remove: ")?;
+                match todos.remove(id) {
+                    Ok(()) => println!("removed: {}", id),
+                    Err(e) => println!("failed to remove: {}", e)
+                };
             },
             4 => {
                 println!("Update");
+                todo!();
             },
             5 => {
-                writeln!(writer, "Exiting...").unwrap();
-                writer.flush().unwrap();
+                println!("Exiting...");
                 break;
             },
             _ => {
@@ -66,43 +92,54 @@ fn main() {
             }
         }
     }
+    Ok(())
 }
 
-fn menu() -> i32 {
-    println!("1 - Add");
-    println!("2 - List");
-    println!("3 - Remove");
-    println!("4 - Update");
-    println!("5 - Exit");
+fn menu() -> io::Result<i32> {
+    print!("1 - Add\n");
+    print!("2 - List\n");
+    print!("3 - Remove\n");
+    print!("4 - Update\n");
+    print!("5 - Exit\n");
+    io::stdout().flush()?;
 
     read_int("Select an option: ")
 }
 
-fn read_int(question: &str) -> i32 {
+fn read_uint(question: &str) -> io::Result<u64> {
+    let int = read_int(question)?;
+    Ok(int as u64)
+}
+
+fn read_int(question: &str) -> io::Result<i32> {
     let mut selected: i32 = 0;
     while selected == 0 {
         let buffer = read_string(question).expect("failed to read string");
         selected = match buffer.trim().parse() {
             Ok(int) => int,
             Err(error) => {
-                println!("input is not an integer: {}", error);
+                print!("input is not an integer: {}", error);
+                io::stdout().flush()?;
                 0
             } 
         }
     }
-    selected
+    Ok(selected)
 }
 
 fn read_string(question: &str) -> io::Result<String> {
-    println!("{}", question);
+    print!("{}", question);
+    io::stdout().flush()?;
     let mut buffer = String::new(); 
     let stdin = io::stdin();
     stdin.read_line(&mut buffer).expect("failed to read line");
     Ok(buffer.trim().to_owned())
 }
 
-fn wait() {
-    println!("press any key to continue...");
+fn wait() -> io::Result<()> {
+    print!("press any key to continue...");
+    io::stdout().flush()?;
     let mut buffer = String::new(); 
     io::stdin().read_line(&mut buffer).expect("failed to read");
+    Ok(())
 }
